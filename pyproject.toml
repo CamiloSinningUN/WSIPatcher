@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "numpy>=2.2.6",
     "openslide-bin>=4.0.0.13",
     "openslide-python>=1.4.3",
 ]
