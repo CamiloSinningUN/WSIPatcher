@@ -9,8 +9,6 @@ A toolkit for preprocessing and analyzing whole slide images (WSI) in digital pa
 
 ## Installation
 
-### With uv (Recommended)
-
 First, [install uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```bash
