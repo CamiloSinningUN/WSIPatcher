@@ -1,4 +1,4 @@
-# WSIPatcher
+# Tessellator
 
 A toolkit for preprocessing and analyzing whole slide images (WSI) in digital pathology. This project combines approaches from Histolab, PathoPatcher, and kaiko's foundation models research to provide efficient WSI processing with tools for accessing open-source datasets.
 
