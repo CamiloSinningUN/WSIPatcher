@@ -1,0 +1,10 @@
+[project]
+name = "wsipatcher"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openslide-bin>=4.0.0.13",
+    "openslide-python>=1.4.3",
+]
