@@ -8,7 +8,10 @@ dependencies = [
     "numpy>=2.2.6",
     "openslide-bin>=4.0.0.13",
     "openslide-python>=1.4.3",
+    "pooch>=1.9.0",
+    "requests>=2.33.1",
     "scikit-image>=0.25.2",
+    "tqdm>=4.67.3",
 ]
 
 [dependency-groups]
