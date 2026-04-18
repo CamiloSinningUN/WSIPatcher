@@ -14,7 +14,7 @@ First, [install uv](https://docs.astral.sh/uv/getting-started/installation/):
 ```bash
 # Clone the repository
 git clone https://github.com/CamiloSinningUN/Tessellator.git
-cd Tessellator
+cd GlassCut
 
 # Sync dependencies and create virtual environment
 uv sync
