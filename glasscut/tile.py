@@ -27,8 +27,8 @@ class Tile:
     def __init__(
         self,
         image: Image.Image,
-        coords: tuple[int, int],
-        magnification: int | float,
+        coords: tuple[int, int] | None,
+        magnification: int | float | None,
         tissue_detector: TissueDetector | None = None,
     ) -> None:
         """Initialize a Tile.
@@ -37,10 +37,10 @@ class Tile:
         ----------
         image : Image.Image
             The tile image in RGB format
-        coords : tuple[int, int]
-            Coordinates (x, y) of the tile at level 0
-        magnification : int | float
-            Magnification at which the tile was extracted
+        coords : tuple[int, int] | None
+            Coordinates (x, y) of the tile at level 0. Can be None for utility tiles.
+        magnification : int | float | None
+            Magnification at which the tile was extracted. Can be None for utility tiles.
         tissue_detector : TissueDetector | None, optional
             Strategy for detecting tissue. If None, uses OtsuTissueDetector.
         """

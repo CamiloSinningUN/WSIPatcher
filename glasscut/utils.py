@@ -1,5 +1,9 @@
 import functools
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, cast
+
+import numpy as np
+from PIL import Image
+from skimage.util.dtype import img_as_ubyte # type: ignore
 
 T = TypeVar("T")
 
@@ -51,3 +55,45 @@ def lazyproperty(f: Callable[..., T]) -> Any:
     """
     # pylint: disable=unused-variable
     return property(functools.lru_cache(maxsize=100)(f))
+
+
+def np_to_pil(np_img: np.ndarray) -> Image.Image:
+    """Convert a NumPy array to a PIL Image.
+
+    Handles the conversion of different numpy array types (bool, float64, uint8, etc.)
+    to a properly formatted PIL Image.
+
+    Parameters
+    ----------
+    np_img : np.ndarray
+        The image represented as a NumPy array.
+
+    Returns
+    -------
+    PIL.Image.Image
+        The image represented as PIL Image
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from glasscut.utils import np_to_pil
+    >>> float_array = np.random.rand(100, 100, 3)
+    >>> pil_image = np_to_pil(float_array)
+    """
+
+    def _transform_bool(img_array: np.ndarray) -> np.ndarray:
+        return img_array.astype(np.uint8) * 255
+
+    def _transform_float(img_array: np.ndarray) -> np.ndarray:
+        return (
+            img_array.astype(np.uint8)
+            if np.max(img_array) > 1
+            else cast(np.ndarray, img_as_ubyte(img_array))
+        )
+
+    types_factory = {
+        "bool": _transform_bool(np_img),
+        "float64": _transform_float(np_img),
+    }
+    image_array = types_factory.get(str(np_img.dtype), np_img.astype(np.uint8))
+    return Image.fromarray(image_array)
