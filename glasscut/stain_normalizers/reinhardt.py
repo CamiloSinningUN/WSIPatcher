@@ -85,19 +85,21 @@ class ReinhardtStainNormalizer(StainNormalizer):
             Image with normalized stain.
         """
         means, stds = self._summary_statistics(image)
-        
+
         img_lab = self.rgb_to_lab(image)
 
-        mask = self._tissue_mask(image)
+        mask = self._tissue_mask(image).astype(bool)
         mask = np.dstack((mask, mask, mask))
 
         masked_img_lab = np.ma.masked_array(img_lab, ~mask)
 
         # Normalize each channel: (x - source_mean) * (target_std / source_std) + target_mean
-        
+
         if self.target_means is None or self.target_stds is None:
-            raise ValueError("Normalizer must be fitted with a target image before transformation.")
-        
+            raise ValueError(
+                "Normalizer must be fitted with a target image before transformation."
+            )
+
         norm_lab = (
             ((masked_img_lab - means) * (self.target_stds / stds)) + self.target_means
         ).data
@@ -135,7 +137,7 @@ class ReinhardtStainNormalizer(StainNormalizer):
         Statistics are only computed on pixels identified as tissue
         to avoid background artifacts.
         """
-        mask = self._tissue_mask(img_rgb)
+        mask = self._tissue_mask(img_rgb).astype(bool)
         mask = np.dstack((mask, mask, mask))
 
         img_lab = self.rgb_to_lab(img_rgb)
@@ -159,12 +161,15 @@ class ReinhardtStainNormalizer(StainNormalizer):
             1 = tissue, 0 = background.
         """
         tile = Tile(
-            img_rgb, coords=None, magnification=None, tissue_detector=OtsuTissueDetector()
+            img_rgb,
+            coords=None,
+            magnification=None,
+            tissue_detector=OtsuTissueDetector(),
         )
         return tile.tissue_mask
-    
+
     # ==== helper implementations ====
-    
+
     @staticmethod
     def rgb_to_lab(img_rgb: Image.Image) -> np.ndarray:
         """Convert RGB image to LAB color space.
@@ -196,9 +201,9 @@ class ReinhardtStainNormalizer(StainNormalizer):
             )
 
         img_arr = np.array(img_rgb)
-        lab_arr = cast(np.ndarray, sk_color.rgb2lab(img_arr)) # type: ignore
+        lab_arr = cast(np.ndarray, sk_color.rgb2lab(img_arr))  # type: ignore
         return lab_arr
-    
+
     @staticmethod
     def lab_to_rgb(img_lab: np.ndarray) -> Image.Image:
         """Convert LAB image to RGB color space.
@@ -213,5 +218,5 @@ class ReinhardtStainNormalizer(StainNormalizer):
         Image.Image
             Image in RGB color space.
         """
-        rgb_arr = cast(np.ndarray, sk_color.lab2rgb(img_lab)) # type: ignore
+        rgb_arr = cast(np.ndarray, sk_color.lab2rgb(img_lab))  # type: ignore
         return np_to_pil(rgb_arr)
