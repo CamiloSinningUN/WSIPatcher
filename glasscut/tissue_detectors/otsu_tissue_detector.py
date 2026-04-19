@@ -46,6 +46,6 @@ class OtsuTissueDetector(TissueDetector):
 
         # Apply Otsu thresholding
         threshold = cast(float, filters.threshold_otsu(img_array)) # type: ignore
-        tissue_mask: np.ndarray = (img_array > threshold).astype(np.uint8)
+        tissue_mask: np.ndarray = (img_array < threshold).astype(np.uint8)
 
         return tissue_mask

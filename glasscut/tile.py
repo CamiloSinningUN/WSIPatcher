@@ -51,18 +51,18 @@ class Tile:
 
     def has_enough_tissue(
         self,
-        tissue_threshold: float = 0.8,
+        tissue_threshold: float = 0.2,
     ) -> bool:
         """Check if the tile has enough tissue.
 
         This method checks if the proportion of the detected tissue over the total area
-        of the tile is above a specified threshold (by default 80%).
+        of the tile is above a specified threshold (by default 20%).
 
         Parameters
         ----------
         tissue_threshold : float, optional
             Number between 0.0 and 1.0 representing the minimum required percentage of
-            tissue over the total area of the image, default is 0.8
+            tissue over the total area of the image, default is 0.2
 
         Returns
         -------

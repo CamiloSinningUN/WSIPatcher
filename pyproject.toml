@@ -5,9 +5,12 @@ description = "A toolkit for preprocessing and analyzing whole slide images comb
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "kaleido>=1.2.0",
     "numpy>=2.2.6",
     "openslide-bin>=4.0.0.13",
     "openslide-python>=1.4.3",
+    "plotly>=6.7.0",
+    "plotly-stubs>=0.0.6",
     "pooch>=1.9.0",
     "requests>=2.33.1",
     "scikit-image>=0.25.2",
@@ -17,7 +20,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=26.3.1",
+    "glasscut",
+    "ipykernel>=7.2.0",
     "mypy>=1.20.1",
+    "nbformat>=5.10.4",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.11",
@@ -26,3 +32,11 @@ gpu = [
     "cucim>=23.10.0",
     "cupy-cuda12x>=14.0.1",
 ]
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+glasscut = { workspace = true, editable = true }
