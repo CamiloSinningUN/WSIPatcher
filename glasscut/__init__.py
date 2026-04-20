@@ -40,6 +40,9 @@ from .tissue_detectors import (
     OtsuTissueDetector,
 )
 
+# Dataset generation
+from .dataset import DatasetGenerator
+
 # Stain normalization
 from .stain_normalizers import MacenkoStainNormalizer, ReinhardtStainNormalizer
 
@@ -54,6 +57,8 @@ __all__ = [
     "GridTiler",
     # Tissue detection
     "OtsuTissueDetector",
+    # Dataset generation
+    "DatasetGenerator",
     # Stain normalization
     "MacenkoStainNormalizer",
     "ReinhardtStainNormalizer",

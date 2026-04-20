@@ -4,7 +4,7 @@ import math
 from typing import Generator
 
 import numpy as np
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from glasscut.slides import Slide
 from glasscut.slides.utils import magnification_to_level
