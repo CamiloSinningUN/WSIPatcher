@@ -8,7 +8,6 @@ from glasscut.slides import Slide
 from glasscut.tile import Tile
 
 
-
 class Tiler(ABC):
     """Abstract base class for tile extraction strategies.
 
@@ -118,43 +117,42 @@ class Tiler(ABC):
         """
         from PIL import ImageDraw
 
-        # Get thumbnail
+        # Build a display thumbnail and map coordinates using exact size ratios.
         thumbnail = slide.thumbnail.copy()
+        if scale_factor > 0:
+            target_w = max(1, int(slide.dimensions[0] / scale_factor))
+            target_h = max(1, int(slide.dimensions[1] / scale_factor))
+            thumbnail = thumbnail.resize((target_w, target_h))
 
-        # Default colors (cycle through these)
+        # Default color: a single green outline for all boxes.
         if colors is None:
-            colors = [
-                (0, 255, 0),  # Green
-                (255, 0, 0),  # Red
-                (0, 0, 255),  # Blue
-                (255, 255, 0),  # Yellow
-            ]
+            colors = [(0, 255, 0)]
 
         # Get tile boxes
         boxes = self.get_tile_boxes(slide)
 
         # Scale coordinates for thumbnail (slide dimensions -> thumbnail dimensions)
-        scale = scale_factor  # Simple scale for now
+        slide_w, slide_h = slide.dimensions
+        thumb_w, thumb_h = thumbnail.size
+        x_ratio = thumb_w / slide_w
+        y_ratio = thumb_h / slide_h
         thumb_draw = ImageDraw.Draw(thumbnail, "RGBA")
 
         for i, (x, y, tile_w, tile_h) in enumerate(boxes):
-            # Scale down coordinates
-            scaled_x = x // scale
-            scaled_y = y // scale
-            scaled_w = tile_w // scale
-            scaled_h = tile_h // scale
-
-            # Bounds for rectangle
-            left = scaled_x
-            top = scaled_y
-            right = scaled_x + scaled_w
-            bottom = scaled_y + scaled_h
+            # Map both box corners independently to reduce rounding artifacts.
+            left = int(round(x * x_ratio))
+            top = int(round(y * y_ratio))
+            right = int(round((x + tile_w) * x_ratio)) - 1
+            bottom = int(round((y + tile_h) * y_ratio)) - 1
 
             # Clip to thumbnail bounds
             left = max(0, min(left, thumbnail.width))
             top = max(0, min(top, thumbnail.height))
-            right = max(0, min(right, thumbnail.width))
-            bottom = max(0, min(bottom, thumbnail.height))
+            right = max(0, min(right, thumbnail.width - 1))
+            bottom = max(0, min(bottom, thumbnail.height - 1))
+
+            if right <= left or bottom <= top:
+                continue
 
             # Draw rectangle
             color = colors[i % len(colors)]
