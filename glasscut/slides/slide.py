@@ -212,11 +212,14 @@ class Slide:
         # Validate magnification - this will raise MagnificationError if not available
         level = magnification_to_level(magnification, available_mags)
 
-        # Validate coordinates
-        if not self._has_valid_coords(coords, tile_size):
+        # Validate coordinates in level-0 space using the true level footprint.
+        downsample = 2**level
+        tile_size_lvl0 = (tile_size[0] * downsample, tile_size[1] * downsample)
+        if not self._has_valid_coords(coords, tile_size_lvl0):
             raise TileSizeOrCoordinatesError(
-                f"Coordinates {coords} with tile_size {tile_size} are invalid for slide with "
-                f"dimensions {self.dimensions}"
+                f"Coordinates {coords} with tile_size {tile_size} at magnification "
+                f"{magnification}x are invalid for slide dimensions {self.dimensions}. "
+                f"Level-0 footprint is {tile_size_lvl0}."
             )
         
         if self._backend is None:

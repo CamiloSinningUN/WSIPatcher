@@ -1,0 +1,182 @@
+"""Grid-based tiler implementation for GlassCut."""
+
+import math
+from typing import Generator
+
+import numpy as np
+from tqdm import tqdm
+
+from glasscut.slides import Slide
+from glasscut.slides.utils import magnification_to_level
+from glasscut.tile import Tile
+from glasscut.tissue_detectors import OtsuTissueDetector, TissueDetector
+
+from .base import Tiler
+
+
+class GridTiler(Tiler):
+    """Extract tiles using a regular grid.
+
+    Parameters
+    ----------
+    tile_size : tuple[int, int], optional
+        Default tile size as ``(width, height)`` in pixels at requested magnification.
+        Default is ``(512, 512)``.
+    magnification : int | float, optional
+        Magnification used for extraction and coordinate generation.
+        Default is ``20``.
+    overlap : int, optional
+        Overlap between neighboring tiles in pixels at requested magnification.
+        Default is ``0``.
+    min_tissue_ratio : float, optional
+        Minimum tissue ratio in ``[0.0, 1.0]`` required for preselection.
+        Default is ``0.2``.
+    tissue_detector : TissueDetector | None, optional
+        Tissue detector used for preselection mask. Defaults to OtsuTissueDetector.
+    show_progress : bool, optional
+        Whether to display a loading bar while extracting tiles. Default is True.
+    """
+
+    def __init__(
+        self,
+        tile_size: tuple[int, int] = (512, 512),
+        magnification: int | float = 20,
+        overlap: int = 0,
+        min_tissue_ratio: float = 0.2,
+        tissue_detector: TissueDetector | None = None,
+        show_progress: bool = True,
+    ) -> None:
+        self._validate_tile_size(tile_size)
+        self._validate_overlap(overlap, tile_size)
+        self._validate_tissue_ratio(min_tissue_ratio)
+
+        self.tile_size = tile_size
+        self.magnification = magnification
+        self.overlap = overlap
+        self.min_tissue_ratio = min_tissue_ratio
+        self.tissue_detector = tissue_detector or OtsuTissueDetector()
+        self.show_progress = show_progress
+
+    def get_tile_boxes(
+        self,
+        slide: Slide,
+    ) -> list[tuple[int, int, int, int]]:
+        """Return preselected grid boxes as ``(x, y, width, height)``."""
+        self._validate_overlap(self.overlap, self.tile_size)
+
+        level = magnification_to_level(self.magnification, slide.magnifications)
+        downsample = 2**level
+
+        tile_w, tile_h = self.tile_size
+        step_x = tile_w - self.overlap
+        step_y = tile_h - self.overlap
+        if step_x <= 0 or step_y <= 0:
+            raise ValueError(
+                "Grid step must be positive. Reduce overlap or increase tile_size."
+            )
+
+        slide_w_lvl0, slide_h_lvl0 = slide.dimensions
+        slide_w_lvl = slide_w_lvl0 // downsample
+        slide_h_lvl = slide_h_lvl0 // downsample
+
+        tissue_mask = self._slide_tissue_mask(slide)
+        mask_h, mask_w = tissue_mask.shape
+
+        boxes_lvl0: list[tuple[int, int, int, int]] = []
+        max_y = max(slide_h_lvl - tile_h, 0)
+        max_x = max(slide_w_lvl - tile_w, 0)
+
+        for row in range(0, max_y + 1, step_y):
+            for col in range(0, max_x + 1, step_x):
+                x0 = col * downsample
+                y0 = row * downsample
+                w0 = tile_w * downsample
+                h0 = tile_h * downsample
+
+                mask_x0 = int(x0 * mask_w / slide_w_lvl0)
+                mask_y0 = int(y0 * mask_h / slide_h_lvl0)
+                mask_x1 = int(
+                    math.ceil(float((x0 + w0) * mask_w) / float(slide_w_lvl0))
+                )
+                mask_y1 = int(
+                    math.ceil(float((y0 + h0) * mask_h) / float(slide_h_lvl0))
+                )
+
+                mask_x0 = max(0, min(mask_x0, mask_w - 1))
+                mask_y0 = max(0, min(mask_y0, mask_h - 1))
+                mask_x1 = max(mask_x0 + 1, min(mask_x1, mask_w))
+                mask_y1 = max(mask_y0 + 1, min(mask_y1, mask_h))
+
+                region = tissue_mask[mask_y0:mask_y1, mask_x0:mask_x1]
+                tissue_ratio = float(np.mean(region)) if region.size > 0 else 0.0
+                if tissue_ratio >= self.min_tissue_ratio:
+                    boxes_lvl0.append((x0, y0, w0, h0))
+
+        return boxes_lvl0
+
+    def extract(
+        self,
+        slide: Slide,
+    ) -> Generator[Tile, None, None]:
+        """Yield preselected tiles in row-major order."""
+        boxes = self.get_tile_boxes(slide)
+
+        box_iterator = (
+            tqdm(
+                boxes,
+                total=len(boxes),
+                desc="Extracting tiles",
+                unit="tile",
+            )
+            if self.show_progress
+            else boxes
+        )
+
+        for x, y, _, _ in box_iterator:
+            yield slide.extract_tile(
+                coords=(x, y),
+                tile_size=self.tile_size,
+                magnification=self.magnification,
+            )
+
+    def _slide_tissue_mask(self, slide: Slide) -> np.ndarray:
+        """Compute a binary tissue mask once from the slide thumbnail."""
+        mask = self.tissue_detector.detect(slide.thumbnail)
+        mask = np.asarray(mask)
+        if mask.dtype != bool:
+            mask = mask > 0
+        return mask
+
+    @staticmethod
+    def _validate_tile_size(tile_size: tuple[int, int]) -> None:
+        if tile_size[0] < 1 or tile_size[1] < 1:
+            raise ValueError(f"tile_size must contain positive values, got {tile_size}")
+
+    @staticmethod
+    def _validate_overlap(overlap: int, tile_size: tuple[int, int]) -> None:
+        if overlap < 0:
+            raise ValueError(f"overlap must be >= 0, got {overlap}")
+        if overlap >= tile_size[0] or overlap >= tile_size[1]:
+            raise ValueError(
+                "overlap must be smaller than both tile dimensions. "
+                f"Got overlap={overlap}, tile_size={tile_size}"
+            )
+
+    @staticmethod
+    def _validate_tissue_ratio(min_tissue_ratio: float) -> None:
+        if not (0.0 <= min_tissue_ratio <= 1.0):
+            raise ValueError(
+                f"min_tissue_ratio must be in [0.0, 1.0], got {min_tissue_ratio}"
+            )
+
+    def __repr__(self) -> str:
+        return (
+            "GridTiler("
+            f"tile_size={self.tile_size}, "
+            f"magnification={self.magnification}, "
+            f"overlap={self.overlap}, "
+            f"min_tissue_ratio={self.min_tissue_ratio}, "
+            f"show_progress={self.show_progress}, "
+            f"tissue_detector={self.tissue_detector.__class__.__name__}"
+            ")"
+        )

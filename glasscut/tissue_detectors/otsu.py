@@ -11,25 +11,10 @@ class OtsuTissueDetector(TissueDetector):
 
     This detector applies Otsu thresholding with optional morphological operations.
     It's fast, robust, and works well for standard histopathology images.
-
-    Parameters
-    ----------
-    apply_prefilter : bool, optional
-        If True, attempts to remove marker artifacts before thresholding, by default False
-    apply_morphology : bool, optional
-        If True, applies morphological operations (dilation, hole filling), by default False
-    morphology_disk_size : int, optional
-        Size of the disk for morphological operations, by default 2
     """
 
     def detect(self, image: Image.Image) -> np.ndarray:
         """Detect tissue using Otsu thresholding.
-
-        Pipeline:
-        1. Convert RGB to grayscale
-        2. (Optional) Apply pre-filtering to remove markers
-        3. Apply Otsu thresholding
-        4. (Optional) Apply morphological operations
 
         Parameters
         ----------

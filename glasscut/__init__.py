@@ -11,7 +11,6 @@ Core Components:
     Tiling Strategies:
         - Tiler: Abstract base class for tiling strategies
         - GridTiler: Regular grid tiling with optional overlap
-        - RandomTiler: Random sampling-based tiling
 
     Tissue Detection:
         - OtsuTissueDetector: Otsu method tissue detection
@@ -31,11 +30,10 @@ from .slides import Slide
 from .tile import Tile
 
 # Tiling strategies
-# from .tiler import (
-#     Tiler,
-#     GridTiler,
-#     RandomTiler
-# )
+from .tiler import (
+    Tiler,
+    GridTiler,
+)
 
 # Tissue detection
 from .tissue_detectors import (
@@ -43,10 +41,7 @@ from .tissue_detectors import (
 )
 
 # Stain normalization
-from .stain_normalizers import (
-    MacenkoStainNormalizer,
-    ReinhardtStainNormalizer
-)
+from .stain_normalizers import MacenkoStainNormalizer, ReinhardtStainNormalizer
 
 __all__ = [
     # Version and metadata
@@ -54,6 +49,9 @@ __all__ = [
     # Core slide classes
     "Slide",
     "Tile",
+    # Tiling strategies
+    "Tiler",
+    "GridTiler",
     # Tissue detection
     "OtsuTissueDetector",
     # Stain normalization
