@@ -22,8 +22,6 @@ from glasscut.storage import (
 )
 from glasscut.storage.structures import JsonValue
 
-# TODO: Add parallel processing
-
 class DatasetGenerator:
     """Generate a tile dataset from one or more slide files."""
 
