@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Sequence
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -21,6 +22,7 @@ from glasscut.storage import (
     TileMetadata,
 )
 from glasscut.storage.structures import JsonValue
+
 
 class DatasetGenerator:
     """Generate a tile dataset from one or more slide files."""
@@ -244,9 +246,9 @@ class DatasetGenerator:
         metadata: list[TileMetadata] = []
         for tile_index, tile in enumerate(
             tiler.extract(
-            slide,
-            n_workers=self.n_workers,
-            batch_size=self.batch_size,
+                slide,
+                n_workers=self.n_workers,
+                batch_size=self.batch_size,
             )
         ):
             tile_id = f"tile_{tile_index:07d}"
@@ -255,7 +257,7 @@ class DatasetGenerator:
             image_to_save = tile.image
             if self.stain_normalizer is not None:
                 image_to_save = self.stain_normalizer.transform(image_to_save)
-            image_to_save.save(tile_path)
+            self._save_tile_png(image_to_save, tile_path)
 
             x, y = tile.coords if tile.coords is not None else (0, 0)
             width, height = tile.image.size
@@ -318,6 +320,32 @@ class DatasetGenerator:
         if mask.dtype != np.uint8:
             mask = mask.astype(np.uint8)
         Image.fromarray(mask * 255).save(masks_dir / "tissue_mask.png")
+
+    @staticmethod
+    def _save_tile_png(image: Image.Image, path: Path) -> None:
+        """Save a tile as lossless PNG using OpenCV for faster encoding."""
+        image_np = np.asarray(image)
+        if image_np.dtype != np.uint8:
+            image_np = image_np.astype(np.uint8)
+
+        if image_np.ndim == 2:
+            encoded = image_np
+        elif image_np.ndim == 3 and image_np.shape[2] == 3:
+            encoded = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+        elif image_np.ndim == 3 and image_np.shape[2] == 4:
+            encoded = cv2.cvtColor(image_np, cv2.COLOR_RGBA2BGRA)
+        else:
+            # Keep behavior robust for unexpected modes by falling back to PIL.
+            image.save(path)
+            return
+
+        success = cv2.imwrite(
+            str(path),
+            encoded,
+            [cv2.IMWRITE_PNG_COMPRESSION, 1],
+        )
+        if not success:
+            raise RuntimeError(f"Failed to write PNG tile with OpenCV: {path}")
 
     def _setup_logger(self) -> logging.Logger:
         logger = logging.getLogger(f"glasscut.dataset.{self.dataset_id}")

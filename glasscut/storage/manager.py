@@ -1,9 +1,10 @@
 """Storage management for dataset generation outputs."""
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import cast
+
+import orjson
 
 from .structures import (
     DatasetMetadata,
@@ -173,13 +174,13 @@ class StorageOrganizer:
 
     @staticmethod
     def _write_json(path: Path, payload: JsonValue) -> None:
-        with path.open("w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
+        # Keep metadata human-readable while using faster serialization.
+        serialized = orjson.dumps(payload, option=orjson.OPT_INDENT_2)
+        path.write_bytes(serialized)
 
     @staticmethod
     def _read_json(path: Path) -> JsonValue:
-        with path.open("r", encoding="utf-8") as handle:
-            return cast(JsonValue, json.load(handle))
+        return cast(JsonValue, orjson.loads(path.read_bytes()))
 
     @staticmethod
     def _as_int(value: JsonValue) -> int:
