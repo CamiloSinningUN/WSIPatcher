@@ -33,7 +33,7 @@ dev = [
 ]
 gpu = [
     "cucim>=23.10.0",
-    "cupy-cuda12x>=14.0.1",
+    "cupy-cuda13x>=14.0.1",
 ]
 
 [tool.uv.workspace]
