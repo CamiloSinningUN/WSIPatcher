@@ -20,16 +20,23 @@ class Tiler(ABC):
     def extract(
         self,
         slide: Slide,
+        *,
+        n_workers: int = 4,
+        batch_size: int = 128,
     ) -> Generator[Tile, None, None]:
         """Extract tiles from slide.
 
-        This is the main method for tile extraction. It yields Tile objects
-        one at a time in order, allowing for efficient memory usage on large slides.
+        This is the primary extraction API for all tilers.
+        Implementations can use batching and parallelism internally.
 
         Parameters
         ----------
         slide : Slide
             The slide object to extract tiles from
+        n_workers : int, optional
+            Worker hint for internal parallel extraction. Default is 4.
+        batch_size : int, optional
+            Internal extraction batch size. Default is 128.
 
         Yields
         ------

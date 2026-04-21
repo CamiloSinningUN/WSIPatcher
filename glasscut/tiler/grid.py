@@ -62,6 +62,14 @@ class GridTiler(Tiler):
         slide: Slide,
     ) -> list[tuple[int, int, int, int]]:
         """Return preselected grid boxes as ``(x, y, width, height)``."""
+        candidates = self.get_tile_candidates(slide)
+        return [(x, y, w, h) for x, y, w, h, _ in candidates]
+
+    def get_tile_candidates(
+        self,
+        slide: Slide,
+    ) -> list[tuple[int, int, int, int, float]]:
+        """Return preselected boxes with tissue ratio as ``(x, y, w, h, ratio)``."""
         self._validate_overlap(self.overlap, self.tile_size)
 
         level = magnification_to_level(self.magnification, slide.magnifications)
@@ -82,7 +90,7 @@ class GridTiler(Tiler):
         tissue_mask = self._slide_tissue_mask(slide)
         mask_h, mask_w = tissue_mask.shape
 
-        boxes_lvl0: list[tuple[int, int, int, int]] = []
+        boxes_lvl0: list[tuple[int, int, int, int, float]] = []
         max_y = max(slide_h_lvl - tile_h, 0)
         max_x = max(slide_w_lvl - tile_w, 0)
 
@@ -110,34 +118,61 @@ class GridTiler(Tiler):
                 region = tissue_mask[mask_y0:mask_y1, mask_x0:mask_x1]
                 tissue_ratio = float(np.mean(region)) if region.size > 0 else 0.0
                 if tissue_ratio >= self.min_tissue_ratio:
-                    boxes_lvl0.append((x0, y0, w0, h0))
+                    boxes_lvl0.append((x0, y0, w0, h0, tissue_ratio))
 
         return boxes_lvl0
 
     def extract(
         self,
         slide: Slide,
+        *,
+        n_workers: int = 4,
+        batch_size: int = 128,
     ) -> Generator[Tile, None, None]:
-        """Yield preselected tiles in row-major order."""
-        boxes = self.get_tile_boxes(slide)
+        """Yield tiles using batched extraction with internal parallel fallback."""
+        if batch_size < 1:
+            raise ValueError("batch_size must be >= 1")
+        if n_workers < 1:
+            raise ValueError("n_workers must be >= 1")
 
-        box_iterator = (
-            tqdm(
-                boxes,
-                total=len(boxes),
-                desc="Extracting tiles",
-                unit="tile",
-            )
-            if self.show_progress
-            else boxes
-        )
+        candidates = self.get_tile_candidates(slide)
+        total_tiles = len(candidates)
 
-        for x, y, _, _ in box_iterator:
-            yield slide.extract_tile(
-                coords=(x, y),
-                tile_size=self.tile_size,
-                magnification=self.magnification,
+        batch_iterator = range(0, total_tiles, batch_size)
+        if self.show_progress:
+            batch_iterator = tqdm(
+                batch_iterator,
+                total=(total_tiles + batch_size - 1) // batch_size,
+                desc="Extracting tile batches",
+                unit="batch",
             )
+
+        for start in batch_iterator:
+            end = min(start + batch_size, total_tiles)
+            batch = candidates[start:end]
+            coords_batch = [(x, y) for x, y, _, _, _ in batch]
+
+            try:
+                tiles = slide.extract_tiles(
+                    coords_list=coords_batch,
+                    tile_size=self.tile_size,
+                    magnification=self.magnification,
+                    num_workers=n_workers,
+                )
+            except Exception:
+                tiles = [
+                    slide.extract_tile(
+                        coords=coords,
+                        tile_size=self.tile_size,
+                        magnification=self.magnification,
+                    )
+                    for coords in coords_batch
+                ]
+
+            for idx, tile in enumerate(tiles):
+                _, _, _, _, tissue_ratio = batch[idx]
+                tile.set_precomputed_tissue_ratio(tissue_ratio)
+                yield tile
 
     def _slide_tissue_mask(self, slide: Slide) -> np.ndarray:
         """Compute a binary tissue mask once from the slide thumbnail."""

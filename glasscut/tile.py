@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 import os
 
 import numpy as np
@@ -30,6 +30,7 @@ class Tile:
         coords: tuple[int, int] | None,
         magnification: int | float | None,
         tissue_detector: TissueDetector | None = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize a Tile.
 
@@ -43,11 +44,28 @@ class Tile:
             Magnification at which the tile was extracted. Can be None for utility tiles.
         tissue_detector : TissueDetector | None, optional
             Strategy for detecting tissue. If None, uses OtsuTissueDetector.
+        **kwargs : Any
+            Optional keyword-only extensions. Supported key:
+            ``precomputed_tissue_ratio`` (float), used to skip recomputing tissue ratio.
         """
+        precomputed_tissue_ratio = kwargs.pop("precomputed_tissue_ratio", None)
+        if kwargs:
+            unknown = ", ".join(sorted(kwargs))
+            raise TypeError(f"Unexpected keyword arguments for Tile: {unknown}")
+
         self.image = image
         self.coords = coords
         self.magnification = magnification
         self.tissue_detector = tissue_detector or OtsuTissueDetector()
+        self._precomputed_tissue_ratio = (
+            float(precomputed_tissue_ratio)
+            if precomputed_tissue_ratio is not None
+            else None
+        )
+
+    def set_precomputed_tissue_ratio(self, tissue_ratio: float) -> None:
+        """Set a precomputed tissue ratio to avoid re-running detection."""
+        self._precomputed_tissue_ratio = tissue_ratio
 
     def has_enough_tissue(
         self,
@@ -115,5 +133,8 @@ class Tile:
         float
             Ratio of the tissue area over the total area of the tile
         """
+        if self._precomputed_tissue_ratio is not None:
+            return float(self._precomputed_tissue_ratio)
+
         tissue_ratio = np.count_nonzero(self.tissue_mask) / self.tissue_mask.size
         return tissue_ratio

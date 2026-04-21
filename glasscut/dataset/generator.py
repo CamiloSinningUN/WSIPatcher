@@ -32,6 +32,8 @@ class DatasetGenerator:
         *,
         tiler: Tiler,
         stain_normalizer: StainNormalizer | None = None,
+        n_workers: int = 4,
+        batch_size: int = 128,
         save_thumbnails: bool = True,
         save_masks: bool = True,
         save_processed_json: bool = True,
@@ -51,6 +53,10 @@ class DatasetGenerator:
         stain_normalizer : StainNormalizer | None, optional
             Optional fitted stain normalizer. If provided, each extracted tile
             is transformed before it is saved.
+        n_workers : int, optional
+            Number of workers for batched tile extraction. Default is ``4``.
+        batch_size : int, optional
+            Number of tiles per extraction batch. Default is ``128``.
         save_thumbnails : bool, optional
             Whether to save slide thumbnail artifacts.
         save_masks : bool, optional
@@ -65,12 +71,16 @@ class DatasetGenerator:
         self._validate_parameters(
             dataset_id=dataset_id,
             output_dir=output_dir,
+            n_workers=n_workers,
+            batch_size=batch_size,
         )
 
         self.dataset_id = dataset_id
         self.output_dir = str(Path(output_dir).resolve())
         self.tiler = tiler
         self.stain_normalizer = stain_normalizer
+        self.n_workers = n_workers
+        self.batch_size = batch_size
         self.save_thumbnails = save_thumbnails
         self.save_masks = save_masks
         self.save_processed_json = save_processed_json
@@ -232,8 +242,13 @@ class DatasetGenerator:
     ) -> list[TileMetadata]:
         """Extract tiles and persist them to disk while collecting metadata."""
         metadata: list[TileMetadata] = []
-
-        for tile_index, tile in enumerate(tiler.extract(slide)):
+        for tile_index, tile in enumerate(
+            tiler.extract(
+            slide,
+            n_workers=self.n_workers,
+            batch_size=self.batch_size,
+            )
+        ):
             tile_id = f"tile_{tile_index:07d}"
             tile_path = tiles_dir / f"{tile_id}.png"
 
@@ -325,12 +340,20 @@ class DatasetGenerator:
     def _validate_parameters(
         dataset_id: str,
         output_dir: str | Path,
+        n_workers: int,
+        batch_size: int,
     ) -> None:
         if not dataset_id:
             raise ValueError("dataset_id is required")
 
         if not output_dir:
             raise ValueError("output_dir is required")
+
+        if n_workers < 1:
+            raise ValueError("n_workers must be >= 1")
+
+        if batch_size < 1:
+            raise ValueError("batch_size must be >= 1")
 
     def _config_dict(self) -> dict[str, JsonValue]:
         """Build JSON-serializable config payload for metadata.json."""
@@ -344,6 +367,8 @@ class DatasetGenerator:
                 else None
             ),
             "show_progress": self.show_progress,
+            "n_workers": self.n_workers,
+            "batch_size": self.batch_size,
             "save_thumbnails": self.save_thumbnails,
             "save_masks": self.save_masks,
             "save_processed_json": self.save_processed_json,
