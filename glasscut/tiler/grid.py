@@ -87,36 +87,47 @@ class GridTiler(Tiler):
         slide_w_lvl = slide_w_lvl0 // downsample
         slide_h_lvl = slide_h_lvl0 // downsample
 
-        tissue_mask = self._slide_tissue_mask(slide)
+        tissue_mask = self._slide_tissue_mask(slide)  # bool H×W
         mask_h, mask_w = tissue_mask.shape
 
-        boxes_lvl0: list[tuple[int, int, int, int, float]] = []
+        # ── Integral image for O(1) region-mean queries ────────────────────
+        # sat[i, j] = sum of tissue_mask[0:i, 0:j] (1-indexed padded form)
+        mask_f = tissue_mask.astype(np.float32)
+        sat = np.zeros((mask_h + 1, mask_w + 1), dtype=np.float64)
+        sat[1:, 1:] = np.cumsum(np.cumsum(mask_f, axis=0), axis=1)
+
         max_y = max(slide_h_lvl - tile_h, 0)
         max_x = max(slide_w_lvl - tile_w, 0)
+
+        # Precompute scale factors
+        sx = mask_w / slide_w_lvl0
+        sy = mask_h / slide_h_lvl0
+        w0 = tile_w * downsample
+        h0 = tile_h * downsample
+
+        boxes_lvl0: list[tuple[int, int, int, int, float]] = []
 
         for row in range(0, max_y + 1, step_y):
             for col in range(0, max_x + 1, step_x):
                 x0 = col * downsample
                 y0 = row * downsample
-                w0 = tile_w * downsample
-                h0 = tile_h * downsample
 
-                mask_x0 = int(x0 * mask_w / slide_w_lvl0)
-                mask_y0 = int(y0 * mask_h / slide_h_lvl0)
-                mask_x1 = int(
-                    math.ceil(float((x0 + w0) * mask_w) / float(slide_w_lvl0))
+                # Map tile corners into mask coordinates (1-indexed SAT space)
+                mx0 = max(0, min(int(x0 * sx), mask_w - 1))
+                my0 = max(0, min(int(y0 * sy), mask_h - 1))
+                mx1 = max(mx0 + 1, min(int(math.ceil((x0 + w0) * sx)), mask_w))
+                my1 = max(my0 + 1, min(int(math.ceil((y0 + h0) * sy)), mask_h))
+
+                # O(1) mean via integral image
+                area = (mx1 - mx0) * (my1 - my0)
+                total = (
+                    sat[my1, mx1]
+                    - sat[my0, mx1]
+                    - sat[my1, mx0]
+                    + sat[my0, mx0]
                 )
-                mask_y1 = int(
-                    math.ceil(float((y0 + h0) * mask_h) / float(slide_h_lvl0))
-                )
+                tissue_ratio = float(total / area)
 
-                mask_x0 = max(0, min(mask_x0, mask_w - 1))
-                mask_y0 = max(0, min(mask_y0, mask_h - 1))
-                mask_x1 = max(mask_x0 + 1, min(mask_x1, mask_w))
-                mask_y1 = max(mask_y0 + 1, min(mask_y1, mask_h))
-
-                region = tissue_mask[mask_y0:mask_y1, mask_x0:mask_x1]
-                tissue_ratio = float(np.mean(region)) if region.size > 0 else 0.0
                 if tissue_ratio >= self.min_tissue_ratio:
                     boxes_lvl0.append((x0, y0, w0, h0, tissue_ratio))
 

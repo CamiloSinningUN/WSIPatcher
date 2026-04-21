@@ -3,7 +3,7 @@
 import math
 import ntpath
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
 
 import numpy as np
@@ -221,7 +221,7 @@ class Slide:
                 f"{magnification}x are invalid for slide dimensions {self.dimensions}. "
                 f"Level-0 footprint is {tile_size_lvl0}."
             )
-        
+
         if self._backend is None:
             raise RuntimeError("Slide not opened")
 
@@ -232,6 +232,25 @@ class Slide:
             size=tile_size,
         )
 
+        return Tile(image, coords, magnification)
+
+    def _extract_tile_direct(
+        self,
+        coords: tuple[int, int],
+        tile_size: tuple[int, int],
+        level: int,
+        magnification: int | float,
+    ) -> Tile:
+        """Extract a tile bypassing per-call validation (internal hot path).
+
+        This is used by :meth:`extract_tiles` where level, magnification and
+        coordinate validity have already been confirmed for the entire batch.
+        """
+        image = self._backend.read_region(  # type: ignore[union-attr]
+            location=coords,
+            level=level,
+            size=tile_size,
+        )
         return Tile(image, coords, magnification)
 
     def extract_tiles(
@@ -267,29 +286,25 @@ class Slide:
         MagnificationError
             If magnification is not available on this slide
         """
-        # Get available magnifications
-        available_mags = self.magnifications
+        # Resolve level once for the whole batch – avoids 128× repeated lookups
+        # inside the thread pool.
+        level = magnification_to_level(magnification, self.magnifications)
 
-        # Validate magnification - this will raise MagnificationError if not available
-        magnification_to_level(magnification, available_mags)
+        if self._backend is None:
+            raise RuntimeError("Slide not opened")
 
-        tiles: list[Tile | None] = [None] * len(coords_list)
-
+        
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            # Submit all tasks
-            futures = {
-                executor.submit(
-                    self.extract_tile, coords, tile_size, magnification
-                ): idx
-                for idx, coords in enumerate(coords_list)
-            }
+            tiles = list(
+                executor.map(
+                    lambda coords: self._extract_tile_direct(
+                        coords, tile_size, level, magnification
+                    ),
+                    coords_list,
+                )
+            )
 
-            # Collect results in order
-            for future in as_completed(futures):
-                idx = futures[future]
-                tiles[idx] = future.result()
-
-        return [t for t in tiles if t is not None]
+        return tiles
 
 
     # ===== Private Helper Methods =====

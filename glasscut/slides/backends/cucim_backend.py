@@ -195,7 +195,7 @@ class CuCimBackend(SlideBackend):
             # Fallback to OpenSlide if cuCim fails
             if self._openslide_backend is None:
                 raise RuntimeError("Slide not opened")
-            
+
             return self._openslide_backend.read_region(location, level, size)
 
     def get_thumbnail(self, size: tuple[int, int]) -> PIL.Image.Image:
