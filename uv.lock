@@ -575,7 +575,6 @@ dependencies = [
     { name = "plotly-stubs", version = "0.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "plotly-stubs", version = "0.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pooch" },
-    { name = "requests" },
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "tqdm" },
@@ -608,7 +607,6 @@ requires-dist = [
     { name = "plotly", specifier = ">=6.7.0" },
     { name = "plotly-stubs", specifier = ">=0.0.6" },
     { name = "pooch", specifier = ">=1.9.0" },
-    { name = "requests", specifier = ">=2.33.1" },
     { name = "scikit-image", specifier = ">=0.25.2" },
     { name = "tqdm", specifier = ">=4.67.3" },
 ]

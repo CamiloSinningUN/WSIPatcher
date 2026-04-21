@@ -14,7 +14,6 @@ dependencies = [
     "plotly>=6.7.0",
     "plotly-stubs>=0.0.6",
     "pooch>=1.9.0",
-    "requests>=2.33.1",
     "scikit-image>=0.25.2",
     "tqdm>=4.67.3",
 ]
