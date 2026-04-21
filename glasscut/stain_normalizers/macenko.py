@@ -1,5 +1,6 @@
 from warnings import warn
 from typing import Any, List
+import logging
 
 import numpy as np
 from PIL import Image
@@ -46,6 +47,8 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
         "dab": np.array([0.27, 0.57, 0.78]),
         "null": np.array([0.0, 0.0, 0.0]),
     }
+
+    _logger = logging.getLogger(__name__)
 
     def __init__(self):
         """Initialize MacenkoStainNormalizer."""
@@ -100,7 +103,7 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
 
         # Convert to OD and apply tissue masking
         tile = Tile(img_rgb, None, None, tissue_detector=OtsuTissueDetector())
-        tissue_mask = tile.tissue_mask
+        tissue_mask = tile.tissue_mask.astype(bool)
 
         if img_rgb.mode == "RGBA":
             red, green, blue, _ = img_rgb.split()
@@ -112,13 +115,39 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
 
         img_arr = np.array(img_rgb)
         od = -np.log((img_arr.astype(np.float64) + 1) / background_intensity)
-        od = od[tissue_mask > 0].reshape(-1, 3)
+        od = od[tissue_mask].reshape(-1, 3)
+
+        if od.size == 0:
+            self._logger.warning(
+                "Macenko fallback: no tissue pixels available for stain matrix estimation."
+            )
+            return self._default_stain_matrix(stains)
 
         # Remove data with OD intensity less than β
         od_hat = od[~np.any(od < beta, axis=1)]
+        if od_hat.shape[0] < 3:
+            self._logger.warning(
+                "Macenko fallback: insufficient OD samples after beta filtering (%d).",
+                od_hat.shape[0],
+            )
+            return self._default_stain_matrix(stains)
 
         # Calculate principal components and project input
-        V = np.linalg.eigh(np.cov(od_hat, rowvar=False))[1][:, -2:]
+        try:
+            V = np.linalg.eigh(np.cov(od_hat, rowvar=False))[1][:, -2:]
+        except np.linalg.LinAlgError:
+            self._logger.warning(
+                "Macenko fallback: covariance eigendecomposition failed.",
+                exc_info=True,
+            )
+            return self._default_stain_matrix(stains)
+
+        if not np.isfinite(V).all():
+            self._logger.warning(
+                "Macenko fallback: non-finite principal components encountered."
+            )
+            return self._default_stain_matrix(stains)
+
         proj = np.dot(od_hat, V)
 
         # Angular coordinates with respect to principal orthogonal eigenvectors
@@ -134,6 +163,12 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
 
         # Fill out empty columns in stain matrix and reorder
         _arr = np.hstack([min_v, max_v])
+        if not np.isfinite(_arr).all():
+            self._logger.warning(
+                "Macenko fallback: non-finite stain vectors encountered."
+            )
+            return self._default_stain_matrix(stains)
+
         unordered_stain_matrix = self._complement_stain_matrix(
             _arr / np.linalg.norm(_arr, axis=0)
         )
@@ -141,6 +176,23 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
             unordered_stain_matrix, stains=stains
         )
         return ordered_stain_matrix
+
+    @classmethod
+    def _default_stain_matrix(cls, stains: List[str]) -> np.ndarray:
+        """Return a robust fallback 3x3 stain matrix for H&E-like normalization."""
+        first = np.array(cls.stain_color_map[stains[0]], dtype=np.float64)
+        second = np.array(cls.stain_color_map[stains[1]], dtype=np.float64)
+
+        first = first / np.linalg.norm(first)
+        second = second / np.linalg.norm(second)
+        third = np.cross(first, second)
+        third_norm = np.linalg.norm(third)
+        if third_norm == 0:
+            third = np.array(cls.stain_color_map["null"], dtype=np.float64)
+        else:
+            third = third / third_norm
+
+        return np.stack([first, second, third], axis=1)
 
     @staticmethod
     def _complement_stain_matrix(stain_matrix: np.ndarray) -> np.ndarray:

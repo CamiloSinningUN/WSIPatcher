@@ -85,6 +85,8 @@ class ReinhardtStainNormalizer(StainNormalizer):
             Image with normalized stain.
         """
         means, stds = self._summary_statistics(image)
+        eps = float(kwargs.get("eps", 1e-8))
+        stds = np.maximum(stds, eps)
 
         img_lab = self.rgb_to_lab(image)
 
@@ -100,8 +102,10 @@ class ReinhardtStainNormalizer(StainNormalizer):
                 "Normalizer must be fitted with a target image before transformation."
             )
 
+        target_stds = np.maximum(self.target_stds, eps)
+
         norm_lab = (
-            ((masked_img_lab - means) * (self.target_stds / stds)) + self.target_means
+            ((masked_img_lab - means) * (target_stds / stds)) + self.target_means
         ).data
 
         # Restore non-tissue regions with original values
@@ -141,8 +145,15 @@ class ReinhardtStainNormalizer(StainNormalizer):
         mask = np.dstack((mask, mask, mask))
 
         img_lab = self.rgb_to_lab(img_rgb)
-        mean_per_channel = img_lab.mean(axis=(0, 1), where=mask)
-        std_per_channel = img_lab.std(axis=(0, 1), where=mask)
+        if np.any(mask):
+            mean_per_channel = img_lab.mean(axis=(0, 1), where=mask)
+            std_per_channel = img_lab.std(axis=(0, 1), where=mask)
+        else:
+            # Fallback avoids NaNs when no tissue is detected in a tile.
+            mean_per_channel = img_lab.mean(axis=(0, 1))
+            std_per_channel = img_lab.std(axis=(0, 1))
+
+        std_per_channel = np.maximum(std_per_channel, 1e-8)
         return mean_per_channel, std_per_channel
 
     @staticmethod
