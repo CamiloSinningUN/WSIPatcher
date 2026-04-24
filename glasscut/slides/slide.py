@@ -3,7 +3,6 @@
 import math
 import ntpath
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
 
 import numpy as np
@@ -233,78 +232,6 @@ class Slide:
         )
 
         return Tile(image, coords, magnification)
-
-    def _extract_tile_direct(
-        self,
-        coords: tuple[int, int],
-        tile_size: tuple[int, int],
-        level: int,
-        magnification: int | float,
-    ) -> Tile:
-        """Extract a tile bypassing per-call validation (internal hot path).
-
-        This is used by :meth:`extract_tiles` where level, magnification and
-        coordinate validity have already been confirmed for the entire batch.
-        """
-        image = self._backend.read_region(  # type: ignore[union-attr]
-            location=coords,
-            level=level,
-            size=tile_size,
-        )
-        return Tile(image, coords, magnification)
-
-    def extract_tiles(
-        self,
-        coords_list: list[tuple[int, int]],
-        tile_size: tuple[int, int],
-        magnification: int | float,
-        num_workers: int = 4,
-    ) -> list[Tile]:
-        """Extract multiple tiles in parallel.
-
-        The requested magnification must be available on this slide.
-        If the exact magnification is not available, a MagnificationError is raised.
-
-        Parameters
-        ----------
-        coords_list : list[tuple[int, int]]
-            List of (x, y) coordinates for each tile
-        tile_size : tuple[int, int]
-            Tile size (width, height) in pixels
-        magnification : int | float
-            Target magnification
-        num_workers : int, optional
-            Number of parallel workers. Default is 4.
-
-        Returns
-        -------
-        List[Tile]
-            List of extracted tiles in the same order as coords_list
-
-        Raises
-        ------
-        MagnificationError
-            If magnification is not available on this slide
-        """
-        # Resolve level once for the whole batch – avoids 128× repeated lookups
-        # inside the thread pool.
-        level = magnification_to_level(magnification, self.magnifications)
-
-        if self._backend is None:
-            raise RuntimeError("Slide not opened")
-
-        
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            tiles = list(
-                executor.map(
-                    lambda coords: self._extract_tile_direct(
-                        coords, tile_size, level, magnification
-                    ),
-                    coords_list,
-                )
-            )
-
-        return tiles
 
 
     # ===== Private Helper Methods =====

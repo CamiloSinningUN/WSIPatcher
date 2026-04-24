@@ -1,6 +1,7 @@
 """Grid-based tiler implementation for GlassCut."""
 
 import math
+from concurrent.futures import ThreadPoolExecutor
 from typing import Generator
 
 import numpy as np
@@ -142,7 +143,11 @@ class GridTiler(Tiler):
         n_workers: int = 4,
         batch_size: int = 128,
     ) -> Generator[Tile, None, None]:
-        """Yield tiles using batched extraction with internal parallel fallback."""
+        """Yield tiles using batched parallel extraction.
+
+        Each worker thread extracts a single tile from the slide and immediately
+        applies the full transform pipeline.
+        """
         if batch_size < 1:
             raise ValueError("batch_size must be >= 1")
         if n_workers < 1:
@@ -163,29 +168,49 @@ class GridTiler(Tiler):
         for start in batch_iterator:
             end = min(start + batch_size, total_tiles)
             batch = candidates[start:end]
-            coords_batch = [(x, y) for x, y, _, _, _ in batch]
 
-            try:
-                tiles = slide.extract_tiles(
-                    coords_list=coords_batch,
-                    tile_size=self.tile_size,
-                    magnification=self.magnification,
-                    num_workers=n_workers,
-                )
-            except Exception:
-                tiles = [
-                    slide.extract_tile(
-                        coords=coords,
-                        tile_size=self.tile_size,
-                        magnification=self.magnification,
+            with ThreadPoolExecutor(max_workers=n_workers) as executor:
+                tiles = list(
+                    executor.map(
+                        lambda item: self._extract_and_transform(slide, item),
+                        batch,
                     )
-                    for coords in coords_batch
-                ]
+                )
 
-            for idx, tile in enumerate(tiles):
-                _, _, _, _, tissue_ratio = batch[idx]
-                tile.set_precomputed_tissue_ratio(tissue_ratio)
-                yield self._apply_transforms(tile)
+            yield from tiles
+
+    def _extract_and_transform(
+        self,
+        slide: Slide,
+        candidate: tuple[int, int, int, int, float],
+    ) -> Tile:
+        """Extract a single tile and apply the transform pipeline.
+
+        This is the worker function executed by each thread in :meth:`extract`.
+        By fusing extraction and transforms in one call, I/O wait and CPU work
+        overlap across tiles within the same batch.
+
+        Parameters
+        ----------
+        slide : Slide
+            The slide to read from.
+        candidate : tuple[int, int, int, int, float]
+            A single entry from :meth:`get_tile_candidates` in the form
+            ``(x, y, w, h, tissue_ratio)`` in level-0 coordinates.
+
+        Returns
+        -------
+        Tile
+            Extracted and transformed tile.
+        """
+        x, y, _, _, tissue_ratio = candidate
+        tile = slide.extract_tile(
+            coords=(x, y),
+            tile_size=self.tile_size,
+            magnification=self.magnification,
+        )
+        tile.set_precomputed_tissue_ratio(tissue_ratio)
+        return self._apply_transforms(tile)
 
     def _apply_transforms(self, tile: Tile) -> Tile:
         """Apply the transform pipeline to *tile* in-place and return it.
