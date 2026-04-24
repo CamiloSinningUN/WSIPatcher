@@ -11,7 +11,7 @@ from glasscut.slides.utils import magnification_to_level
 from glasscut.tile import Tile
 from glasscut.tissue_detectors import OtsuTissueDetector, TissueDetector
 
-from .base import Tiler
+from .base import Tiler, TileTransform
 
 
 class GridTiler(Tiler):
@@ -44,6 +44,7 @@ class GridTiler(Tiler):
         overlap: int = 0,
         min_tissue_ratio: float = 0.2,
         tissue_detector: TissueDetector | None = None,
+        transforms: list[TileTransform] | None = None,
         show_progress: bool = True,
     ) -> None:
         self._validate_tile_size(tile_size)
@@ -55,6 +56,7 @@ class GridTiler(Tiler):
         self.overlap = overlap
         self.min_tissue_ratio = min_tissue_ratio
         self.tissue_detector = tissue_detector or OtsuTissueDetector()
+        self.transforms: list[TileTransform] = transforms or []
         self.show_progress = show_progress
 
     def get_tile_boxes(
@@ -183,7 +185,25 @@ class GridTiler(Tiler):
             for idx, tile in enumerate(tiles):
                 _, _, _, _, tissue_ratio = batch[idx]
                 tile.set_precomputed_tissue_ratio(tissue_ratio)
-                yield tile
+                yield self._apply_transforms(tile)
+
+    def _apply_transforms(self, tile: Tile) -> Tile:
+        """Apply the transform pipeline to *tile* in-place and return it.
+
+        Parameters
+        ----------
+        tile : Tile
+            Tile whose ``.image`` will be passed through each transform in
+            ``self.transforms`` in order.
+
+        Returns
+        -------
+        Tile
+            The same tile object with ``.image`` replaced by the transformed image.
+        """
+        for transform in self.transforms:
+            tile.image = transform(tile.image)
+        return tile
 
     def _slide_tissue_mask(self, slide: Slide) -> np.ndarray:
         """Compute a binary tissue mask once from the slide thumbnail."""
@@ -222,6 +242,7 @@ class GridTiler(Tiler):
             f"magnification={self.magnification}, "
             f"overlap={self.overlap}, "
             f"min_tissue_ratio={self.min_tissue_ratio}, "
+            f"transforms={[t.__name__ if hasattr(t, '__name__') else repr(t) for t in self.transforms]}, "
             f"show_progress={self.show_progress}, "
             f"tissue_detector={self.tissue_detector.__class__.__name__}"
             ")"

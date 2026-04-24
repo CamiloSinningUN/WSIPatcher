@@ -13,10 +13,11 @@ Example:
     ...     print(f"Tile at {tile.coords}: size {tile.image.size}")
 """
 
-from .base import Tiler
+from .base import Tiler, TileTransform
 from .grid import GridTiler
 
 __all__ = [
     "Tiler",
-    "GridTiler"
+    "TileTransform",
+    "GridTiler",
 ]

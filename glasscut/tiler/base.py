@@ -1,11 +1,15 @@
 """Base Tiler abstract class for tile extraction strategies."""
 
 from abc import ABC, abstractmethod
-from typing import Generator
+from typing import Callable, Generator
 from PIL import Image
 
 from glasscut.slides import Slide
 from glasscut.tile import Tile
+
+# A tile transform is any callable that maps a PIL image to a PIL image.
+# Stain normalizers, colour-jitter functions, resizers, etc. all qualify.
+TileTransform = Callable[[Image.Image], Image.Image]
 
 
 class Tiler(ABC):
