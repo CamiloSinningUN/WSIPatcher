@@ -11,7 +11,6 @@ import numpy as np
 from PIL import Image
 
 from glasscut.slides import Slide
-from glasscut.stain_normalizers import StainNormalizer
 from glasscut.tile import Tile
 from glasscut.tiler import Tiler
 from glasscut.tissue_detectors import OtsuTissueDetector
@@ -33,7 +32,6 @@ class DatasetGenerator:
         output_dir: str | Path,
         *,
         tiler: Tiler,
-        stain_normalizer: StainNormalizer | None = None,
         n_workers: int = 4,
         batch_size: int = 128,
         save_thumbnails: bool = True,
@@ -52,9 +50,6 @@ class DatasetGenerator:
             Output root directory.
         tiler : Tiler
             Preconfigured tiler instance used for extraction.
-        stain_normalizer : StainNormalizer | None, optional
-            Optional fitted stain normalizer. If provided, each extracted tile
-            is transformed before it is saved.
         n_workers : int, optional
             Number of workers for batched tile extraction. Default is ``4``.
         batch_size : int, optional
@@ -80,7 +75,6 @@ class DatasetGenerator:
         self.dataset_id = dataset_id
         self.output_dir = str(Path(output_dir).resolve())
         self.tiler = tiler
-        self.stain_normalizer = stain_normalizer
         self.n_workers = n_workers
         self.batch_size = batch_size
         self.save_thumbnails = save_thumbnails
@@ -254,10 +248,7 @@ class DatasetGenerator:
             tile_id = f"tile_{tile_index:07d}"
             tile_path = tiles_dir / f"{tile_id}.png"
 
-            image_to_save = tile.image
-            if self.stain_normalizer is not None:
-                image_to_save = self.stain_normalizer.transform(image_to_save)
-            self._save_tile_png(image_to_save, tile_path)
+            self._save_tile_png(tile.image, tile_path)
 
             x, y = tile.coords if tile.coords is not None else (0, 0)
             width, height = tile.image.size
@@ -389,11 +380,6 @@ class DatasetGenerator:
             "dataset_id": self.dataset_id,
             "output_dir": self.output_dir,
             "tiler_name": self.tiler.__class__.__name__,
-            "stain_normalizer": (
-                self.stain_normalizer.__class__.__name__
-                if self.stain_normalizer is not None
-                else None
-            ),
             "show_progress": self.show_progress,
             "n_workers": self.n_workers,
             "batch_size": self.batch_size,

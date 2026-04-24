@@ -1,5 +1,5 @@
+import warnings
 from typing import Any, cast
-from warnings import warn
 
 import numpy as np
 from PIL import Image
@@ -52,6 +52,12 @@ class ReinhardtStainNormalizer(StainNormalizer):
 
     def __init__(self):
         """Initialize ReinhardtStainNormalizer."""
+        warnings.warn(
+            "ReinhardtStainNormalizer is experimental and may produce errors or "
+            "unexpected results on certain images. Use with caution.",
+            UserWarning,
+            stacklevel=2,
+        )
         self.target_means = None
         self.target_stds = None
 
@@ -84,26 +90,26 @@ class ReinhardtStainNormalizer(StainNormalizer):
         Image.Image
             Image with normalized stain.
         """
-        means, stds = self._summary_statistics(image)
-        eps = float(kwargs.get("eps", 1e-8))
-        stds = np.maximum(stds, eps)
-
-        img_lab = self.rgb_to_lab(image)
-
-        mask = self._tissue_mask(image).astype(bool)
-        mask = np.dstack((mask, mask, mask))
-
-        masked_img_lab = np.ma.masked_array(img_lab, ~mask)
-
-        # Normalize each channel: (x - source_mean) * (target_std / source_std) + target_mean
-
         if self.target_means is None or self.target_stds is None:
             raise ValueError(
                 "Normalizer must be fitted with a target image before transformation."
             )
 
+        eps = float(kwargs.get("eps", 1e-8))
+
+        # Compute tissue mask once and reuse for both statistics and normalisation.
+        mask_2d = self._tissue_mask(image).astype(bool)
+        mask_3d = np.dstack((mask_2d, mask_2d, mask_2d))
+
+        img_lab = self.rgb_to_lab(image)
+
+        means, stds = self._summary_statistics(image, mask_2d=mask_2d, img_lab=img_lab)
+        stds = np.maximum(stds, eps)
         target_stds = np.maximum(self.target_stds, eps)
 
+        masked_img_lab = np.ma.masked_array(img_lab, ~mask_3d)
+
+        # Normalize each channel: (x - source_mean) * (target_std / source_std) + target_mean
         norm_lab = (
             ((masked_img_lab - means) * (target_stds / stds)) + self.target_means
         ).data
@@ -112,15 +118,19 @@ class ReinhardtStainNormalizer(StainNormalizer):
         for i in range(3):
             original = img_lab[:, :, i].copy()
             new = norm_lab[:, :, i].copy()
-            original[np.not_equal(~mask[:, :, 0], True)] = 0
-            new[~mask[:, :, 0]] = 0
+            original[np.not_equal(~mask_3d[:, :, 0], True)] = 0
+            new[~mask_2d] = 0
             norm_lab[:, :, i] = new + original
 
         norm_rgb = self.lab_to_rgb(norm_lab)
         return norm_rgb
 
     def _summary_statistics(
-        self, img_rgb: Image.Image
+        self,
+        img_rgb: Image.Image,
+        *,
+        mask_2d: np.ndarray | None = None,
+        img_lab: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute mean and std of each LAB channel on tissue region.
 
@@ -128,6 +138,12 @@ class ReinhardtStainNormalizer(StainNormalizer):
         ----------
         img_rgb : Image.Image
             Input image.
+        mask_2d : np.ndarray, optional
+            Pre-computed 2-D boolean tissue mask (H×W). When provided, avoids
+            a redundant tissue-detection pass.
+        img_lab : np.ndarray, optional
+            Pre-computed LAB array (H×W×3). When provided, avoids a redundant
+            colour-space conversion.
 
         Returns
         -------
@@ -141,13 +157,15 @@ class ReinhardtStainNormalizer(StainNormalizer):
         Statistics are only computed on pixels identified as tissue
         to avoid background artifacts.
         """
-        mask = self._tissue_mask(img_rgb).astype(bool)
-        mask = np.dstack((mask, mask, mask))
+        if mask_2d is None:
+            mask_2d = self._tissue_mask(img_rgb).astype(bool)
+        if img_lab is None:
+            img_lab = self.rgb_to_lab(img_rgb)
 
-        img_lab = self.rgb_to_lab(img_rgb)
-        if np.any(mask):
-            mean_per_channel = img_lab.mean(axis=(0, 1), where=mask)
-            std_per_channel = img_lab.std(axis=(0, 1), where=mask)
+        mask_3d = np.dstack((mask_2d, mask_2d, mask_2d))
+        if np.any(mask_3d):
+            mean_per_channel = img_lab.mean(axis=(0, 1), where=mask_3d)
+            std_per_channel = img_lab.std(axis=(0, 1), where=mask_3d)
         else:
             # Fallback avoids NaNs when no tissue is detected in a tile.
             mean_per_channel = img_lab.mean(axis=(0, 1))
@@ -206,9 +224,10 @@ class ReinhardtStainNormalizer(StainNormalizer):
         if img_rgb.mode == "RGBA":
             red, green, blue, _ = img_rgb.split()
             img_rgb = Image.merge("RGB", (red, green, blue))
-            warn(
+            warnings.warn(
                 "Input image is RGBA. Converting to RGB before LAB conversion. "
-                "Alpha channel will be discarded."
+                "Alpha channel will be discarded.",
+                stacklevel=2,
             )
 
         img_arr = np.array(img_rgb)

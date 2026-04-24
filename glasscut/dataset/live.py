@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Sequence
 
 from glasscut.slides import Slide
-from glasscut.stain_normalizers import StainNormalizer
 from glasscut.tile import Tile
 from glasscut.tiler import Tiler
 
@@ -59,7 +58,6 @@ class LiveSlideDataset:
         slide_paths: Sequence[str | Path],
         *,
         tiler: Tiler,
-        stain_normalizer: StainNormalizer | None = None,
         n_workers: int = 4,
         batch_size: int = 128,
         use_cucim: bool = True,
@@ -73,7 +71,6 @@ class LiveSlideDataset:
 
         self.slide_paths = [str(Path(path).resolve()) for path in slide_paths]
         self.tiler = tiler
-        self.stain_normalizer = stain_normalizer
         self.n_workers = n_workers
         self.batch_size = batch_size
         self.use_cucim = use_cucim
@@ -98,15 +95,13 @@ class LiveSlideDataset:
         tiler = self._build_tiler()
 
         with Slide(slide_path, use_cucim=self.use_cucim) as slide:
-            tiles: list[Tile] = []
-            for tile in tiler.extract(
-                slide,
-                n_workers=self.n_workers,
-                batch_size=self.batch_size,
-            ):
-                if self.stain_normalizer is not None:
-                    tile.image = self.stain_normalizer.transform(tile.image)
-                tiles.append(tile)
+            tiles: list[Tile] = list(
+                tiler.extract(
+                    slide,
+                    n_workers=self.n_workers,
+                    batch_size=self.batch_size,
+                )
+            )
 
             return LiveSlideSample(
                 slide_id=slide_id,

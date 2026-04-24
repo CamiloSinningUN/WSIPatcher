@@ -1,3 +1,4 @@
+import warnings
 from warnings import warn
 from typing import Any, List
 import logging
@@ -52,6 +53,12 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
 
     def __init__(self):
         """Initialize MacenkoStainNormalizer."""
+        warnings.warn(
+            "MacenkoStainNormalizer is experimental and may produce errors or "
+            "unexpected results on certain images. Use with caution.",
+            UserWarning,
+            stacklevel=2,
+        )
         super().__init__()
         self.stain_matrix_target = None
         self.max_concentrations_target = None
@@ -110,7 +117,8 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
             img_rgb = Image.merge("RGB", (red, green, blue))
             warn(
                 "Input image is RGBA. Converting to RGB before OD conversion. "
-                "Alpha channel will be discarded."
+                "Alpha channel will be discarded.",
+                stacklevel=2,
             )
 
         img_arr = np.array(img_rgb)
