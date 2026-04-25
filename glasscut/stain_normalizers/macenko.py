@@ -78,11 +78,16 @@ class MacenkoStainNormalizer(TransformerStainMatrixMixin, StainNormalizer):
         background_intensity : int, optional
             Background transmitted light intensity. Default is 240.
         **kwargs
-            Additional keyword arguments:
-            - alpha (int): Minimum angular percentile. Default is 1.
-            - beta (float): Threshold for OD magnitude filtering. Default is 0.15.
-            - stains (list of str): List of stain names in order.
-              Default is ["hematoxylin", "eosin"].
+            Additional keyword arguments.
+
+        Other Parameters
+        ----------------
+        alpha : int, optional
+            Minimum angular percentile. Default is 1.
+        beta : float, optional
+            Threshold for OD magnitude filtering. Default is 0.15.
+        stains : list of str, optional
+            List of stain names in order. Default is ``["hematoxylin", "eosin"]``.
 
         Returns
         -------

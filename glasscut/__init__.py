@@ -22,7 +22,7 @@ Core Components:
 See documentation at: https://github.com/CamiloSinningUN/glasscut
 """
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 __author__ = "Camilo Jose Sinning Lopez"
 
 # Core slide classes
