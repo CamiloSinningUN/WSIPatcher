@@ -38,6 +38,10 @@ gpu = [
     "cupy-cuda13x>=14.0.1",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["glasscut*"]
+
 [tool.uv.workspace]
 members = [
     ".",
