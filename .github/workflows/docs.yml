@@ -27,7 +27,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install sphinx sphinxawesome-theme nbsphinx
+          pip install sphinx shibuya nbsphinx
           pip install -e .
       - name: Generate API reference
         run: sphinx-apidoc -o docs/api glasscut/
