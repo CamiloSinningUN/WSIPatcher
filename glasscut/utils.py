@@ -1,4 +1,6 @@
 import functools
+import threading
+import time
 from typing import Any, Callable, TypeVar, cast
 
 import numpy as np
@@ -97,3 +99,79 @@ def np_to_pil(np_img: np.ndarray) -> Image.Image:
     }
     image_array = types_factory.get(str(np_img.dtype), np_img.astype(np.uint8))
     return Image.fromarray(image_array)
+
+
+class Profiler:
+    """Lightweight phase-based profiler with thread-safe accumulation.
+
+    Zero overhead when *enabled* is ``False`` — all methods return immediately.
+
+    Example
+    -------
+    >>> profiler = Profiler(enabled=True)
+    >>> for i in range(100):
+    ...     with profiler.phase("compute"):
+    ...         _ = i ** 2
+    >>> profiler.print_summary()
+    """
+
+    __slots__ = ("enabled", "_phases", "_lock")
+
+    def __init__(self, enabled: bool = True) -> None:
+        self.enabled = enabled
+        self._phases: dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def phase(self, name: str) -> "_PhaseContext":
+        return _PhaseContext(self, name)
+
+    @property
+    def phases(self) -> dict[str, float]:
+        return dict(self._phases)
+
+    def summary(self, sort: bool = True) -> str:
+        items = list(self._phases.items())
+        if sort:
+            items.sort(key=lambda x: x[1], reverse=True)
+        total = sum(t for _, t in items)
+        lines = ["----Profile ----"]
+        for name, elapsed in items:
+            pct = 100.0 * elapsed / total if total else 0.0
+            lines.append(f"  {name:<48s} {elapsed:8.4f}s  ({pct:5.1f}%)")
+        lines.append(f"  {'TOTAL':<48s} {total:8.4f}s  (100.0%)")
+        return "\n".join(lines)
+
+    def print_summary(self, sort: bool = True) -> None:
+        if self.enabled:
+            print(self.summary(sort=sort))
+
+    def record(self, name: str, elapsed: float) -> None:
+        with self._lock:
+            self._phases[name] = self._phases.get(name, 0.0) + elapsed
+
+    def reset(self) -> None:
+        self._phases.clear()
+
+    def __copy__(self) -> "Profiler":
+        return Profiler(enabled=self.enabled)
+
+    def __deepcopy__(self, memo: dict[object, object]) -> "Profiler":
+        return Profiler(enabled=self.enabled)
+
+
+class _PhaseContext:
+    __slots__ = ("_profiler", "_name", "_t0")
+
+    def __init__(self, profiler: Profiler, name: str) -> None:
+        self._profiler = profiler
+        self._name = name
+
+    def __enter__(self) -> "_PhaseContext":
+        if self._profiler.enabled:
+            self._t0 = time.perf_counter()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        if self._profiler.enabled:
+            elapsed = time.perf_counter() - self._t0
+            self._profiler.record(self._name, elapsed)

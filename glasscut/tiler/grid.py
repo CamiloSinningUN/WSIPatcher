@@ -1,8 +1,9 @@
 """Grid-based tiler implementation for GlassCut."""
 
+import copy
 import math
 from concurrent.futures import ThreadPoolExecutor
-from typing import Generator
+from typing import Any, Generator
 
 import numpy as np
 from tqdm.auto import tqdm
@@ -11,9 +12,11 @@ from glasscut.slides import Slide
 from glasscut.slides.utils import magnification_to_level
 from glasscut.tile import Tile
 from glasscut.tissue_detectors import OtsuTissueDetector, TissueDetector
+from glasscut.utils import Profiler
 
 from .base import Tiler, TileTransform
 
+_Candidate = tuple[int, int, int, int, float]
 
 class GridTiler(Tiler):
     """Extract tiles using a regular grid.
@@ -36,6 +39,9 @@ class GridTiler(Tiler):
         Tissue detector used for preselection mask. Defaults to OtsuTissueDetector.
     show_progress : bool, optional
         Whether to display a loading bar while extracting tiles. Default is True.
+    debug : bool, optional
+        When True, record and print per-phase timing breakdown (tissue mask,
+        candidate grid, tile extraction, transforms). Default is False.
     """
 
     def __init__(
@@ -47,6 +53,7 @@ class GridTiler(Tiler):
         tissue_detector: TissueDetector | None = None,
         transforms: list[TileTransform] | None = None,
         show_progress: bool = True,
+        debug: bool = False,
     ) -> None:
         self._validate_tile_size(tile_size)
         self._validate_overlap(overlap, tile_size)
@@ -59,6 +66,7 @@ class GridTiler(Tiler):
         self.tissue_detector = tissue_detector or OtsuTissueDetector()
         self.transforms: list[TileTransform] = transforms or []
         self.show_progress = show_progress
+        self._profiler = Profiler(enabled=debug)
 
     def get_tile_boxes(
         self,
@@ -71,12 +79,12 @@ class GridTiler(Tiler):
     def get_tile_candidates(
         self,
         slide: Slide,
-    ) -> list[tuple[int, int, int, int, float]]:
+    ) -> list[_Candidate]:
         """Return preselected boxes with tissue ratio as ``(x, y, w, h, ratio)``."""
         self._validate_overlap(self.overlap, self.tile_size)
 
         level = magnification_to_level(self.magnification, slide.magnifications)
-        downsample = 2**level
+        downsample: int = 2**level
 
         tile_w, tile_h = self.tile_size
         step_x = tile_w - self.overlap
@@ -86,53 +94,57 @@ class GridTiler(Tiler):
                 "Grid step must be positive. Reduce overlap or increase tile_size."
             )
 
-        slide_w_lvl0, slide_h_lvl0 = slide.dimensions
+        slide_w_lvl0: int = slide.dimensions[0]
+        slide_h_lvl0: int = slide.dimensions[1]
         slide_w_lvl = slide_w_lvl0 // downsample
         slide_h_lvl = slide_h_lvl0 // downsample
 
-        tissue_mask = self._slide_tissue_mask(slide)  # bool H×W
-        mask_h, mask_w = tissue_mask.shape
+        with self._profiler.phase("tissue_mask"):
+            tissue_mask = self._slide_tissue_mask(slide)  # bool H×W
+        mask_h: int = tissue_mask.shape[0]
+        mask_w: int = tissue_mask.shape[1]
 
-        # ── Integral image for O(1) region-mean queries ────────────────────
-        # sat[i, j] = sum of tissue_mask[0:i, 0:j] (1-indexed padded form)
-        mask_f = tissue_mask.astype(np.float32)
-        sat = np.zeros((mask_h + 1, mask_w + 1), dtype=np.float64)
-        sat[1:, 1:] = np.cumsum(np.cumsum(mask_f, axis=0), axis=1)
+        boxes_lvl0: list[_Candidate] = []
 
-        max_y = max(slide_h_lvl - tile_h, 0)
-        max_x = max(slide_w_lvl - tile_w, 0)
+        with self._profiler.phase("candidate_grid"):
+            # ── Integral image for O(1) region-mean queries ────────────────
+            # sat[i, j] = sum of tissue_mask[0:i, 0:j] (1-indexed padded form)
+            mask_f = tissue_mask.astype(np.float32)
+            sat = np.zeros((mask_h + 1, mask_w + 1), dtype=np.float64)
+            sat[1:, 1:] = np.cumsum(np.cumsum(mask_f, axis=0), axis=1)
 
-        # Precompute scale factors
-        sx = mask_w / slide_w_lvl0
-        sy = mask_h / slide_h_lvl0
-        w0 = tile_w * downsample
-        h0 = tile_h * downsample
+            max_y = max(slide_h_lvl - tile_h, 0)
+            max_x = max(slide_w_lvl - tile_w, 0)
 
-        boxes_lvl0: list[tuple[int, int, int, int, float]] = []
+            # Precompute scale factors
+            sx = mask_w / slide_w_lvl0
+            sy = mask_h / slide_h_lvl0
+            w0 = tile_w * downsample
+            h0 = tile_h * downsample
 
-        for row in range(0, max_y + 1, step_y):
-            for col in range(0, max_x + 1, step_x):
-                x0 = col * downsample
-                y0 = row * downsample
+            for row in range(0, max_y + 1, step_y):
+                for col in range(0, max_x + 1, step_x):
+                    x0 = col * downsample
+                    y0 = row * downsample
 
-                # Map tile corners into mask coordinates (1-indexed SAT space)
-                mx0 = max(0, min(int(x0 * sx), mask_w - 1))
-                my0 = max(0, min(int(y0 * sy), mask_h - 1))
-                mx1 = max(mx0 + 1, min(int(math.ceil((x0 + w0) * sx)), mask_w))
-                my1 = max(my0 + 1, min(int(math.ceil((y0 + h0) * sy)), mask_h))
+                    # Map tile corners into mask coordinates (1-indexed SAT space)
+                    mx0 = max(0, min(int(x0 * sx), mask_w - 1))
+                    my0 = max(0, min(int(y0 * sy), mask_h - 1))
+                    mx1 = max(mx0 + 1, min(math.ceil((x0 + w0) * sx), mask_w))
+                    my1 = max(my0 + 1, min(math.ceil((y0 + h0) * sy), mask_h))
 
-                # O(1) mean via integral image
-                area = (mx1 - mx0) * (my1 - my0)
-                total = (
-                    sat[my1, mx1]
-                    - sat[my0, mx1]
-                    - sat[my1, mx0]
-                    + sat[my0, mx0]
-                )
-                tissue_ratio = float(total / area)
+                    # O(1) mean via integral image
+                    area = (mx1 - mx0) * (my1 - my0)
+                    total = (
+                        sat[my1, mx1]
+                        - sat[my0, mx1]
+                        - sat[my1, mx0]
+                        + sat[my0, mx0]
+                    )
+                    tissue_ratio = float(total / area)
 
-                if tissue_ratio >= self.min_tissue_ratio:
-                    boxes_lvl0.append((x0, y0, w0, h0, tissue_ratio))
+                    if tissue_ratio >= self.min_tissue_ratio:
+                        boxes_lvl0.append((x0, y0, w0, h0, tissue_ratio))
 
         return boxes_lvl0
 
@@ -165,24 +177,22 @@ class GridTiler(Tiler):
                 unit="batch",
             )
 
+        def _extract_one(item: _Candidate) -> Tile:
+            return self._extract_and_transform(slide, item)
+
         for start in batch_iterator:
             end = min(start + batch_size, total_tiles)
-            batch = candidates[start:end]
+            batch: list[_Candidate] = candidates[start:end]
 
             with ThreadPoolExecutor(max_workers=n_workers) as executor:
-                tiles = list(
-                    executor.map(
-                        lambda item: self._extract_and_transform(slide, item),
-                        batch,
-                    )
-                )
+                tiles = list(executor.map(_extract_one, batch))
 
             yield from tiles
 
     def _extract_and_transform(
         self,
         slide: Slide,
-        candidate: tuple[int, int, int, int, float],
+        candidate: _Candidate,
     ) -> Tile:
         """Extract a single tile and apply the transform pipeline.
 
@@ -204,13 +214,15 @@ class GridTiler(Tiler):
             Extracted and transformed tile.
         """
         x, y, _, _, tissue_ratio = candidate
-        tile = slide.extract_tile(
-            coords=(x, y),
-            tile_size=self.tile_size,
-            magnification=self.magnification,
-        )
+        with self._profiler.phase("extract_tile"):
+            tile = slide.extract_tile(
+                coords=(x, y),
+                tile_size=self.tile_size,
+                magnification=self.magnification,
+            )
         tile.set_precomputed_tissue_ratio(tissue_ratio)
-        return self._apply_transforms(tile)
+        with self._profiler.phase("apply_transforms"):
+            return self._apply_transforms(tile)
 
     def _apply_transforms(self, tile: Tile) -> Tile:
         """Apply the transform pipeline to *tile* in-place and return it.
@@ -252,6 +264,20 @@ class GridTiler(Tiler):
                 "overlap must be smaller than both tile dimensions. "
                 f"Got overlap={overlap}, tile_size={tile_size}"
             )
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "GridTiler":
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == "_profiler":
+                object.__setattr__(result, k, v)
+            else:
+                object.__setattr__(result, k, copy.deepcopy(v, memo))
+        return result
+
+    def print_profile(self) -> None:
+        self._profiler.print_summary()
 
     @staticmethod
     def _validate_tissue_ratio(min_tissue_ratio: float) -> None:

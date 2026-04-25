@@ -42,7 +42,6 @@ from .tissue_detectors import (
 
 # Dataset generation
 from .dataset import DatasetGenerator, LiveSlideDataset, LiveSlideSample
-
 # Stain normalization
 from .stain_normalizers import MacenkoStainNormalizer, ReinhardtStainNormalizer
 
