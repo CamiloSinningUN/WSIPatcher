@@ -14,6 +14,13 @@ scanners, and laboratory conditions across histopathology slides.
    For production use, we strongly recommend implementing your own normalizer adapted to
    your specific stain types, tissue morphology, and computational constraints.
 
+.. figure:: ../_static/img/stain_normalization.png
+   :align: center
+   :alt: Stain normalization comparison
+   :width: 100%
+
+   Macenko normalization: heart tissue (source) matched to breast tissue (target)
+
 Macenko Normalizer
 ------------------
 
@@ -65,7 +72,7 @@ on tissue regions, providing a fast approximate normalisation.
    tissue types and staining qualities.
 
 Custom Normalizers (Recommended)
-------------------
+--------------------------------
 
 Implement a custom normalizer by subclassing :class:`~glasscut.stain_normalizers.base.StainNormalizer`:
 

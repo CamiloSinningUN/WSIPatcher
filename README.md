@@ -2,6 +2,8 @@
 
 A lightweight, extensible toolkit for preprocessing and analyzing whole slide images (WSI) in digital pathology. GlassCut combines efficient WSI reading, and tiling into a modular pipeline, with optional GPU acceleration via CuCim.
 
+![Pipeline Overview](docs/_static/img/pipeline_overview.png)
+
 ## Features
 
 - **Multi-backend WSI reading** — OpenSlide (CPU) and CuCim (GPU) backends with automatic fallback

@@ -9,44 +9,44 @@ Sample Functions
 ----------------
 
 .. list-table::
-    :header-rows: 1
+   :header-rows: 1
 
    * - Function
-      - Source
-      - Description
+     - Source
+     - Description
    * - :func:`~glasscut.data.aorta_tissue`
-      - Aperio
-      - Aorta tissue, JPEG 2000
+     - Aperio
+     - Aorta tissue, JPEG 2000
    * - :func:`~glasscut.data.breast_tissue`
-      - TCGA-BRCA
-      - Breast carcinoma, H&E
+     - TCGA-BRCA
+     - Breast carcinoma, H&E
    * - :func:`~glasscut.data.breast_tissue_diagnostic_green_pen`
-      - TCGA-BRCA
-      - Breast with green pen marks
+     - TCGA-BRCA
+     - Breast with green pen marks
    * - :func:`~glasscut.data.breast_tissue_diagnostic_red_pen`
-      - TCGA-BRCA
-      - Breast with red pen marks
+     - TCGA-BRCA
+     - Breast with red pen marks
    * - :func:`~glasscut.data.breast_tissue_diagnostic_black_pen`
-      - TCGA-BRCA
-      - Breast with black pen marks
+     - TCGA-BRCA
+     - Breast with black pen marks
    * - :func:`~glasscut.data.cmu_small_region`
-      - CMU
-      - MRXS small region (CC0)
+     - CMU
+     - MRXS small region (CC0)
    * - :func:`~glasscut.data.heart_tissue`
-      - Aperio
-      - Heart tissue, JPEG 2000
+     - Aperio
+     - Heart tissue, JPEG 2000
    * - :func:`~glasscut.data.ihc_breast`
-      - IDR
-      - Breast cancer, IHC (CD3/CD20)
+     - IDR
+     - Breast cancer, IHC (CD3/CD20)
    * - :func:`~glasscut.data.ihc_kidney`
-      - IDR
-      - Kidney tissue, IHC (CD3/CD20)
+     - IDR
+     - Kidney tissue, IHC (CD3/CD20)
    * - :func:`~glasscut.data.ovarian_tissue`
-      - TCGA-OV
-      - Ovarian carcinoma
+     - TCGA-OV
+     - Ovarian carcinoma
    * - :func:`~glasscut.data.prostate_tissue`
-      - TCGA-PRAD
-      - Prostate adenocarcinoma
+     - TCGA-PRAD
+     - Prostate adenocarcinoma
 
 Usage
 -----

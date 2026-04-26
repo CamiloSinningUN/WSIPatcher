@@ -3,6 +3,13 @@ Working with Slides
 
 The :class:`~glasscut.slides.Slide` class is the entry point for reading whole slide images.
 
+.. figure:: ../_static/img/slide_visualization.png
+   :align: center
+   :alt: Slide visualization
+   :width: 100%
+
+   Whole slide image: thumbnail, 20x region, and high-magnification region of heart tissue (Aperio AT2)
+
 Opening a Slide
 ---------------
 
@@ -49,11 +56,11 @@ abstract interface:
    :header-rows: 1
 
    * - Backend
-      - Hardware
-      - Dependencies
+     - Hardware
+     - Dependencies
    * - :class:`~glasscut.slides.backends.openslide_backend.OpenSlideBackend`
-      - CPU
-      - openslide-python, openslide-bin
+     - CPU
+     - openslide-python, openslide-bin
    * - :class:`~glasscut.slides.backends.cucim_backend.CuCimBackend`
-      - GPU (CUDA)
-      - cucim, cupy-cuda13x
+     - GPU (CUDA)
+     - cucim, cupy-cuda13x

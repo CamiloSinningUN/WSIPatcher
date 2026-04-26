@@ -1,6 +1,13 @@
 Dataset Generation
 ==================
 
+.. figure:: ../_static/img/dataset_pipeline.png
+   :align: center
+   :alt: Dataset generation pipeline
+   :width: 80%
+
+   Dataset generation pipeline: slides → tiling → tissue filtering → storage
+
 GlassCut provides two approaches for working with tile datasets:
 
 DatasetGenerator

@@ -18,6 +18,7 @@ The :class:`~glasscut.tiler.grid.GridTiler` extracts tiles on a regular grid wit
 overlap and tissue-prescreening.
 
 .. code:: python
+
     from glasscut import Slide, GridTiler
 
     tiler = GridTiler(
@@ -29,6 +30,13 @@ overlap and tissue-prescreening.
 
     for tile in tiler.extract(slide):
         tile.save(f"tiles/{tile.coords}.png")
+
+.. figure:: ../_static/img/grid_tiling.png
+   :align: center
+   :alt: Grid tiling visualization
+   :width: 100%
+
+   Grid tiles overlaid on heart tissue slide; green tiles pass tissue prescreening
 
 Key Parameters
 --------------

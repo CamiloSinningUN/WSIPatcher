@@ -15,6 +15,8 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
+    "sphinx_copybutton",
+    "sphinx_design",
 ]
 
 intersphinx_mapping = {
@@ -29,7 +31,65 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "shibuya"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+html_js_files = ["custom.js"]
 html_title = "GlassCut"
+
+html_theme_options: dict[str, Any] = {
+    "github_url": "https://github.com/CamiloSinningUN/GlassCut",
+    "color_mode": "dark",
+    "accent_color": "iris",
+    "light_logo": "_static/web-light/icons8-scissors-led-32.png",
+    "dark_logo": "_static/web-dark/icons8-scissors-led-32.png",
+    "nav_links": [
+        {
+            "title": "Installation",
+            "url": "installation",
+        },
+        {
+            "title": "Quickstart",
+            "url": "quickstart",
+        },
+        {
+            "title": "Usage",
+            "url": "usage/index",
+            "children": [
+                {
+                    "title": "Slides",
+                    "url": "usage/slides",
+                },
+                {
+                    "title": "Tiling",
+                    "url": "usage/tiling",
+                },
+                {
+                    "title": "Tissue Detection",
+                    "url": "usage/tissue_detection",
+                },
+                {
+                    "title": "Stain Normalization",
+                    "url": "usage/stain_normalization",
+                },
+                {
+                    "title": "Dataset",
+                    "url": "usage/dataset",
+                },
+                {
+                    "title": "Sample Data",
+                    "url": "usage/data",
+                },
+            ],
+        },
+        {
+            "title": "API",
+            "url": "api/index",
+        },
+        {
+            "title": "Contributing",
+            "url": "contributing",
+        },
+    ],
+}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -50,7 +110,3 @@ autodoc_default_options: dict[str, Any] = {
 }
 
 autodoc_typehints = "description"
-
-
-def setup(app: Any) -> None:
-    app.add_css_file("custom.css")

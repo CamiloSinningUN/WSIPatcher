@@ -11,6 +11,13 @@ This is a critical preprocessing step in digital pathology pipelines.
    interface. For production use, we strongly recommend implementing your own detector tailored
    to your specific tissue types, staining protocols, and scanning artefacts.
 
+.. figure:: ../_static/img/tissue_detection.png
+   :align: center
+   :alt: Tissue detection mask
+   :width: 100%
+
+   Otsu thresholding on heart tissue — original region, binary tissue mask, and overlay
+
 OtsuTissueDetector
 ------------------
 
