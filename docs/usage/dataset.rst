@@ -4,7 +4,7 @@ Dataset Generation
 .. figure:: ../_static/img/pipeline_overview.png
    :align: center
    :alt: Dataset generation pipeline
-   :width: 80%
+   :width: 100%
 
    Dataset generation pipeline: slides → tiling → tissue filtering → storage
 

@@ -14,11 +14,6 @@ GlassCut combines efficient WSI reading, and grid tiling into a modular pipeline
    api/index
    contributing
 
-.. figure:: _static/img/pipeline_overview.png
-   :align: center
-   :alt: GlassCut pipeline overview
-   :width: 100%
-
    Whole slide image processing with GlassCut.
 
 .. grid:: 2
