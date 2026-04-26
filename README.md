@@ -78,7 +78,7 @@ Full documentation is available at [https://CamiloSinningUN.github.io/GlassCut](
 This project draws inspiration from:
 
 - Marcolini, A., Bussola, N., Arbitrio, E., Amgad, M., Jurman, G., & Furlanello, C. (2022). histolab: A Python library for reproducible Digital Pathology preprocessing with automated testing. *SoftwareX*, 20(101237).
-- Hörst, F., et al. (2024). Accelerating Artificial Intelligence-based Whole Slide Image Analysis with an Optimized Preprocessing Pipeline. *Bildverarbeitung für die Medizin 2024*, pp. 356–361.
+- Hörst, F., Schaheer, S. H., Baldini, G., Bahnsen, F. H., Egger, J., & Kleesiek, J. (2024). Accelerating Artificial Intelligence-based Whole Slide Image Analysis with an Optimized Preprocessing Pipeline. *Bildverarbeitung für die Medizin 2024*, pp. 356–361. https://doi.org/10.1007/978-3-658-44037-4_91
 - kaiko.ai et al. (2024). Towards Large-Scale Training of Pathology Foundation Models. *arXiv preprint* arXiv:2404.15217.
 
 ## Author

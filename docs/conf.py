@@ -50,3 +50,7 @@ autodoc_default_options: dict[str, Any] = {
 }
 
 autodoc_typehints = "description"
+
+
+def setup(app: Any) -> None:
+    app.add_css_file("custom.css")
