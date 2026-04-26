@@ -1,7 +1,7 @@
 Dataset Generation
 ==================
 
-.. figure:: ../_static/img/dataset_pipeline.png
+.. figure:: ../_static/img/pipeline_overview.png
    :align: center
    :alt: Dataset generation pipeline
    :width: 80%
