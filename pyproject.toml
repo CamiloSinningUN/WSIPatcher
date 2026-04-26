@@ -1,9 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "glasscut"
 version = "0.1.0"
 description = "A toolkit for preprocessing and analyzing whole slide images combining approaches from Histolab and PathoPatcher with GPU acceleration via CuCim"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    { name = "CamiloSinningUN", email = "camilosinning.cs@gmail.com" },
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "kaleido>=1.2.0",
     "numpy>=2.2.6",
@@ -40,9 +53,14 @@ gpu = [
     "cupy-cuda13x>=14.0.1",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["glasscut*"]
+[project.urls]
+Homepage = "https://github.com/CamiloSinningUN/GlassCut"
+Source = "https://github.com/CamiloSinningUN/GlassCut"
+Documentation = "https://camilosinningun.github.io/GlassCut"
+Issues = "https://github.com/CamiloSinningUN/GlassCut/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["glasscut"]
 
 [tool.uv.workspace]
 members = [
