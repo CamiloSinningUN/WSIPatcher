@@ -3,7 +3,7 @@ GlassCut
 
 A lightweight, extensible toolkit for preprocessing and analyzing whole slide images (WSI) in digital pathology.
 
-GlassCut combines efficient WSI reading, and grid tiling into a modular pipeline, with optional GPU acceleration via CuCim, following optimized preprocessing workflows [Horst2024]_, and [Marcolini2022]. It is designed to be both usable out-of-the-box and easily extensible for custom research workflows.
+GlassCut combines efficient WSI reading, and grid tiling into a modular pipeline, with optional GPU acceleration via CuCim, following optimized preprocessing workflows [Horst2024]_, and [Marcolini2022]_. It is designed to be both usable out-of-the-box and easily extensible for custom research workflows.
 
 .. toctree::
    :hidden:
