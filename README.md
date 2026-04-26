@@ -17,19 +17,25 @@ A lightweight, extensible toolkit for preprocessing and analyzing whole slide im
 
 ## Installation
 
+Install from PyPI (recommended):
+
+```bash
+pip install glasscut
+```
+
+For GPU acceleration:
+
+```bash
+pip install "glasscut[gpu]"
+```
+
+Install from source (development):
+
 ```bash
 git clone https://github.com/CamiloSinningUN/GlassCut.git
 cd GlassCut
 uv sync
 ```
-
-### GPU acceleration (optional)
-
-```bash
-uv sync --group gpu
-```
-
-Requires a CUDA-compatible GPU and driver. See [CuCim documentation](https://docs.rapids.ai/api/cucim/stable/) for details.
 
 ## Quick Start
 

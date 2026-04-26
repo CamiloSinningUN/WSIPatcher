@@ -3,6 +3,20 @@
 Installation
 ============
 
+Install from PyPI (recommended):
+
+.. code:: bash
+
+   pip install glasscut
+
+For GPU acceleration, install with the ``gpu`` extra:
+
+.. code:: bash
+
+   pip install "glasscut[gpu]"
+
+Install from source (development):
+
 .. code:: bash
 
    git clone https://github.com/CamiloSinningUN/GlassCut.git
