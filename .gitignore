@@ -72,7 +72,8 @@ instance/
 # Sphinx documentation
 docs/build/
 docs/_build/
-docs/api/
+docs/api/*
+!docs/api/index.rst
 docs/.doctrees/
 docs/*.pyc
 
