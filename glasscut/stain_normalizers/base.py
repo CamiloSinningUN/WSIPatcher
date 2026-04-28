@@ -171,7 +171,9 @@ class TransformerStainMatrixMixin:
         od = np.reshape(od, (-1, 3)).T
 
         # determine concentrations of the individual stains
-        return np.linalg.lstsq(stain_matrix, od, rcond=None)[0]
+        # Precompute 3x3 pseudo-inverse once → fast matmul per pixel
+        stain_matrix_pinv = np.linalg.pinv(stain_matrix)
+        return stain_matrix_pinv @ od
 
     @abstractmethod
     def stain_matrix(

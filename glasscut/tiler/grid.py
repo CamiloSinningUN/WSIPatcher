@@ -1,7 +1,6 @@
 """Grid-based tiler implementation for GlassCut."""
 
 import copy
-import math
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Generator
 
@@ -122,29 +121,39 @@ class GridTiler(Tiler):
             w0 = tile_w * downsample
             h0 = tile_h * downsample
 
-            for row in range(0, max_y + 1, step_y):
-                for col in range(0, max_x + 1, step_x):
-                    x0 = col * downsample
-                    y0 = row * downsample
+            cols = np.arange(0, max_x + 1, step_x)
+            rows = np.arange(0, max_y + 1, step_y)
+            if cols.size == 0 or rows.size == 0:
+                return []
 
-                    # Map tile corners into mask coordinates (1-indexed SAT space)
-                    mx0 = max(0, min(int(x0 * sx), mask_w - 1))
-                    my0 = max(0, min(int(y0 * sy), mask_h - 1))
-                    mx1 = max(mx0 + 1, min(math.ceil((x0 + w0) * sx), mask_w))
-                    my1 = max(my0 + 1, min(math.ceil((y0 + h0) * sy), mask_h))
+            col_grid, row_grid = np.meshgrid(cols, rows)
 
-                    # O(1) mean via integral image
-                    area = (mx1 - mx0) * (my1 - my0)
-                    total = (
-                        sat[my1, mx1]
-                        - sat[my0, mx1]
-                        - sat[my1, mx0]
-                        + sat[my0, mx0]
-                    )
-                    tissue_ratio = float(total / area)
+            x0_all = col_grid * downsample
+            y0_all = row_grid * downsample
 
-                    if tissue_ratio >= self.min_tissue_ratio:
-                        boxes_lvl0.append((x0, y0, w0, h0, tissue_ratio))
+            mx0 = np.clip((x0_all * sx).astype(np.int64), 0, mask_w - 1)
+            my0 = np.clip((y0_all * sy).astype(np.int64), 0, mask_h - 1)
+            mx1 = np.clip(
+                np.ceil((x0_all + w0) * sx).astype(np.int64), mx0 + 1, mask_w
+            )
+            my1 = np.clip(
+                np.ceil((y0_all + h0) * sy).astype(np.int64), my0 + 1, mask_h
+            )
+
+            area = (mx1 - mx0) * (my1 - my0)
+            total = (
+                sat[my1, mx1]
+                - sat[my0, mx1]
+                - sat[my1, mx0]
+                + sat[my0, mx0]
+            )
+            tissue_ratios = total / area
+
+            keep = tissue_ratios >= self.min_tissue_ratio
+            boxes_lvl0 = [
+                (int(x), int(y), int(w0), int(h0), float(r))
+                for x, y, r in zip(x0_all[keep], y0_all[keep], tissue_ratios[keep])
+            ]
 
         return boxes_lvl0
 
