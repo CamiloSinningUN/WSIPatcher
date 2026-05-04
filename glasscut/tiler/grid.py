@@ -184,6 +184,7 @@ class GridTiler(Tiler):
                 total=(total_tiles + batch_size - 1) // batch_size,
                 desc="Extracting tile batches",
                 unit="batch",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed_s:.3f}s<{remaining_s:.3f}s, {rate_fmt}{postfix}]"
             )
 
         def _extract_one(item: _Candidate) -> Tile:
